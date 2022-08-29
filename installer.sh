@@ -6,6 +6,7 @@ python3 -c "from termcolor import colored; print(colored('Installing requirement
 pip3 install -r requirements.txt
 python3 -c "from termcolor import colored; print(colored('Downloading the binary', 'yellow'))"
 wget https://raw.githubusercontent.com/idobarel/mtps/main/mtps
+chmod +x mtps
 python3 -c "from termcolor import colored; print(colored('Moving mtps to /usr/bin', 'yellow'))"
 sudo mv mtps /usr/bin
 clear
