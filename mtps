@@ -1,0 +1,101 @@
+#!/usr/bin/env python3
+import socket
+import os
+from termcolor import colored
+from argparse import ArgumentParser
+import threading
+import sys
+from queue import Queue
+from datetime import datetime
+from tqdm import tqdm
+
+def getArgs():
+    parser = ArgumentParser("Multi Threaded Port Scanner", "mps [IP | HOST]", "Multi threading port scanned written in python3, came to replace the threader3000.")
+    parser.add_argument("target", type=str, help="Specify the target IP / HOST")
+    parser.add_argument("-v", "--verbose", default=False, action="store_true", required=False, help="verbose")
+    parser.add_argument("-n", "--nmap", type=str, default="", required=False, help="If you want to run nmap with the found ports, specify -n following by the output file name")
+    return parser.parse_args()
+
+def cdir():
+    return os.popen("pwd").read().strip()+"/"
+
+def main():
+    args = getArgs()
+    socket.setdefaulttimeout(0.30)
+    print_lock = threading.Lock()
+    discovered_ports = []
+    print("-" * 60)
+    print("|"+" "*25+"GeverAL"+" "*25+"|")
+    print("|"+" "*26+"MTPS"+" "*27+"|")
+    print("-" * 60)
+
+    print("-" * 60)
+    print("target >> "+colored(args.target, "magenta"))
+    print("Verbose >> "+colored(args.verbose, "magenta"))
+    print("Nmap >> "+colored(args.nmap != "", "magenta"))
+    if args.nmap != "":
+        out = cdir()+args.nmap
+        print("Output File >> "+colored(out, "magenta"))
+    print("-" * 60)
+    target = args.target
+    try:
+        t_ip = socket.gethostbyname(target)
+    except (UnboundLocalError, socket.gaierror):
+        print("\n[-]Invalid format. Please use a correct IP or web address[-]\n")
+        sys.exit()
+    print("-" * 60)
+    print("Scanning target "+ t_ip)
+    print("Time started: "+ str(datetime.now()))
+    print("-" * 60)
+    t1 = datetime.now()
+
+    def portscan(port):
+       s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+       try:
+          portx = s.connect((t_ip, port))
+          with print_lock:
+            if args.verbose:
+                print("Port {} is open".format(port))
+            discovered_ports.append(str(port))
+          portx.close()
+
+       except (ConnectionRefusedError, AttributeError, OSError):
+          pass
+
+    def threader():
+       while True:
+          worker = q.get()
+          portscan(worker)
+          q.task_done()
+      
+    q = Queue()
+    for _ in range(2000):
+       t = threading.Thread(target=threader)
+       t.daemon = True
+       t.start()
+
+    if not args.verbose:
+        for worker in tqdm(range(1, 65536)):
+            q.put(worker)
+    else:
+        for worker in range(1, 65536):
+            q.put(worker)
+
+    q.join()
+
+    t2 = datetime.now()
+    total = t2 - t1
+    print("Port scan completed in "+str(total))
+    print(colored("Dumping results:", "green", attrs=['dark']))
+    for x in discovered_ports:
+        print(colored(x, "cyan", attrs=['bold']))
+    if args.nmap != "":
+        nmap = "nmap -p{ports} -sV -sC -T4 -oN {outname} {ip}".format(ports=",".join(discovered_ports),outname=out, ip=target)
+        os.system(nmap)
+
+if __name__ == '__main__':
+    try:
+        main()
+    except KeyboardInterrupt:
+        print(colored("\nGoodbye!", "green", attrs=['bold', 'dark']))
+        quit()
