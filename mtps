@@ -69,7 +69,7 @@ def main():
           q.task_done()
       
     q = Queue()
-    for _ in range(2000):
+    for _ in range(1500):
        t = threading.Thread(target=threader)
        t.daemon = True
        t.start()
