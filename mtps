@@ -3,6 +3,7 @@ from argparse import ArgumentParser
 from termcolor import colored
 from threading import Thread
 import socket
+import os
 
 class PortScanner():
     def __init__(self, args:dict) -> None:
@@ -10,14 +11,17 @@ class PortScanner():
         self.done = False
         self.ports = self.ports.split("-")
         self.ports = range(int(self.ports[0]), int(self.ports[1]))
+        self.l = len(self.ports)
         self.chuncks = self.split(self.ports, self.threads)
         self.open = []
+        self.count = 0
 
     def split(self, a, n):
         k, m = divmod(len(a), n)
         return (a[i*k+min(i, m):(i+1)*k+min(i+1, m)] for i in range(n))
 
     def checkPort(self, port:int):
+        self.count += 1
         conn = False
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
@@ -33,12 +37,14 @@ class PortScanner():
             if self.done == True:
                 break
             s = colored(i, "yellow")
-            print(f"Checking port ***{s}***\r",end="",flush=True)
+            p = str(self.count / self.l * 100)[:4]
+            print(f"Checking port ***{s}*** {p}%\r",end="",flush=True)
             if self.checkPort(i):
                 self.open.append(i)
                 if self.verbose == True:
                     print("************"+colored(i, "green")+"************")
         self.done = True
+
     def start(self):
         self.ts = []
         for x in self.chuncks:
@@ -54,6 +60,13 @@ class PortScanner():
         print("\n")
         print("Open Ports: "+str(self.open))
 
+    def nmapServiceScan(self, filename:str):
+        ports = [str(x) for x in self.open]
+        ports = ",".join(ports)
+        cmd = f"nmap -sC -sV -oN {filename} -p {ports} {self.target}"
+        print("Running the following command:\n"+colored(cmd, "green"))
+        os.system(cmd)
+
 def getArgs():
     parser = ArgumentParser(prog="mtps", description="Super fast port scanning")
     parser.add_argument("target", type=str, help="IPv4 of the target server.")
@@ -62,12 +75,15 @@ def getArgs():
     parser.add_argument("-t", "--threads", default=10, type=int, help="Specify the amount of jobs.")
     return parser.parse_args().__dict__
 
+    
 
 def main():
     args = getArgs()
     socket.setdefaulttimeout(0.30)
     ps = PortScanner(args)
     ps.start()
+    ps.nmapServiceScan("nmap.sql")
+    
 
 if __name__ =="__main__":
     main()
